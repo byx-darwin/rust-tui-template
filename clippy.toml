@@ -1,0 +1,4 @@
+# TUI template: synchronous-first.
+# std::fs is the correct choice for config loading and file I/O
+# in a TUI app (rendering is on the main thread).
+# For async I/O in background tasks, use tokio::fs.
