@@ -50,6 +50,9 @@ demo: build ## Launch the TUI with simulated data
 watch: ## Watch for changes and check (requires cargo-watch)
 	@cargo watch -x check
 
+test-watch: ## Watch for changes and run tests (TDD mode)
+	@cargo watch -x "nextest run --all-features"
+
 bench: ## Run benchmarks
 	@cargo bench --workspace
 
@@ -78,6 +81,6 @@ release: ## Tag and publish a release
 	@git push origin master
 	@cargo release push --execute
 
-.PHONY: help build check run demo test fmt clippy lint audit install-tools install \
+.PHONY: help build check run demo test test-watch fmt clippy lint audit install-tools install \
         watch bench coverage docs release-dry-run \
         update-submodule check-agent-sync release
