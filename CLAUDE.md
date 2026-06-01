@@ -93,15 +93,10 @@ This repository is a reusable Rust 2024 workspace template for TUI (Terminal Use
 
 ## Async and Concurrency
 
-- Use Tokio with explicit features when an async runtime is needed.
-- Prefer actors and message passing over shared mutable state.
-- Use `tokio::sync::mpsc` for MPSC and `flume` when a faster channel is justified.
-- For non-`Send` or non-`Sync` resources, isolate ownership in a dedicated actor or thread instead of wrapping them in locks.
-- Prefer `DashMap` over `Mutex<HashMap>` or `RwLock<HashMap>` for concurrent maps.
-- Use `ArcSwap` for infrequently updated shared configuration.
-- Handle all spawned task results and panics; prefer `JoinSet` for groups of tasks.
-- Avoid blocking inside async code; use `tokio::task::spawn_blocking` when required.
-- Use native async traits unless object safety requires `async-trait`; document that reason at module level.
+- Use Tokio with explicit features. Never block in async — use `spawn_blocking`.
+- Prefer `DashMap` over `Mutex<HashMap>`. Use `ArcSwap` for shared config.
+- Handle all spawned task results; prefer `JoinSet`.
+- Use `tracing`; never `println!` or `dbg!`. Add `#[instrument]` on async boundaries.
 
 ## Input, Security, and Resource Boundaries
 
@@ -154,63 +149,14 @@ Follow TDD for every feature and bug fix. The cycle is: **RED → GREEN → REFA
 - Use `rstest` for parameterized cases (`#[case]`). Use `proptest` for invariants (`proptest!`).
 - Use `mockall` or `wiremock` only when isolation is valuable; prefer fast real implementations.
 - Doc tests for public examples. Mark slow tests `#[ignore]`.
-
-## Logging and Observability
-
-- Use `tracing`; never use `println!` or `dbg!` in production code.
-- Prefer structured fields over string concatenation, especially for user-controlled values.
-- Use `error!`, `warn!`, `info!`, `debug!`, and `trace!` intentionally.
-- Add `#[instrument]` to meaningful async boundaries and skip large or sensitive parameters.
-- Use JSON logging for production and human-readable output for local development.
-
-## Performance
-
-- Profile before optimizing.
-- Avoid unnecessary allocation and cloning; prefer borrowing, `Arc`, `Cow<str>`, and `Bytes` where appropriate.
-- Preallocate with `Vec::with_capacity()` when final size is known.
-- Prefer iterators and small focused functions.
-- Consider `SmallVec` or `smallbox` only when profiling or data shape justifies it.
-- Add Criterion benchmarks only after behavior stabilizes.
+- Profile before optimizing. Avoid unnecessary allocation: prefer `Cow<str>`, `Arc`, `Bytes`.
 
 ## Dependencies
 
-- Minimize dependency count and prefer pure Rust crates over FFI bindings.
-- Use workspace dependencies for shared crates.
-- Pin intentionally: `~` for patch-only updates when needed, default caret requirements for normal minor updates.
-- Audit maintenance status, security history, and code quality before adding a dependency.
-- Use package managers for dependency changes; do not manually edit lockfiles or manifests for installs or upgrades.
-
-## Documentation
-
-- Write doc comments for all public items.
-- Use `//!` for module-level documentation.
-- Include examples where helpful, and document `# Errors`, `# Panics`, and `# Safety` sections when applicable.
-- Generate docs with `cargo doc --no-deps` when documentation rendering needs verification.
+- Minimize dependency count. Use workspace deps. Audit before adding. Pin intentionally.
 
 ## Code Style
 
-- Import order: standard library, external dependencies, local modules.
-- Use specific imports and refer to imported names directly; avoid fully qualified paths in implementations except for macros.
-- Follow Rust naming conventions: `snake_case`, `PascalCase`, and `SCREAMING_SNAKE_CASE`.
-- Keep functions small and focused; split complex logic into named helpers.
-- Order items consistently: imports, constants, types, functions, tests.
-- Use trailing commas in multi-line calls and literals.
-- Run `rustfmt` rather than hand-formatting.
-
-## Clippy Pedantic Alignment
-
-All code should pass `cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic`. Prefer these idioms:
-
-- `x.map_or(a, f)` instead of `x.map(f).unwrap_or(a)`.
-- `v.and_then(Value::as_u64)` instead of redundant closures.
-- `"value: {x}"` instead of positional format arguments.
-- Backtick identifiers in docs, including environment variables and fields.
-- Combine same-body match arms with `|`; keep wildcard arms last.
-- Restructure instead of using needless `continue`.
-- Collapse nested `if` expressions when conditions can be combined.
-- Use `&str` instead of `String` for non-consuming parameters.
-- Add `#[must_use]` to pure value-returning functions.
-- Avoid wildcard imports and similar-looking variable names.
-- Use `.try_into()` for lossy conversions and `.into()` or `as` only for provably lossless ones.
-- Return the inner type when a function always returns `Some` or `Ok`.
-- Prefer one-pass `.filter_map(f)` over `.filter().map()` or `.map().flatten()`.
+- Import order: std, external, local. Run `rustfmt`, don't hand-format.
+- Write doc comments for all public items. Document `# Errors`, `# Panics`, `# Safety`.
+- All code must pass `cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic`.
