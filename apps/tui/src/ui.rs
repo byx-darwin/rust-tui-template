@@ -9,6 +9,7 @@ use ratatui::{
     Frame,
 };
 use crate::app::{App, Tab};
+use crate::i18n::{self, Locale};
 use crate::theme::Theme;
 
 /// Main render entry point.
@@ -23,23 +24,28 @@ pub fn render(frame: &mut Frame, app: &App) {
         ])
         .split(frame.area());
 
-    render_tab_bar(frame, areas[0], app.active_tab);
+    render_tab_bar(frame, areas[0], app);
 
     match app.active_tab {
         Tab::Overview => render_overview(frame, areas[1], app),
         Tab::Processes => render_processes(frame, areas[1], app),
-        Tab::About => render_about(frame, areas[1]),
+        Tab::About => render_about(frame, areas[1], app),
     }
 
     render_status_bar(frame, areas[2], app);
 
     if app.show_help_bar {
-        render_help_bar(frame, areas[3], app.active_tab);
+        render_help_bar(frame, areas[3], app);
     }
 }
 
-fn render_tab_bar(frame: &mut Frame, area: Rect, active_tab: Tab) {
-    let titles = ["Overview", "Processes", "About"];
+fn render_tab_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let locale = app.locale;
+    let titles = [
+        i18n::tab_overview(locale),
+        i18n::tab_processes(locale),
+        i18n::tab_about(locale),
+    ];
     let tab_lines: Vec<Line> = titles
         .iter()
         .enumerate()
@@ -50,7 +56,7 @@ fn render_tab_bar(frame: &mut Frame, area: Rect, active_tab: Tab) {
                 _ => Tab::About,
             };
             let label = format!(" {t} ");
-            if tab == active_tab {
+            if tab == app.active_tab {
                 Line::from(label).fg(Theme::TAB_ACTIVE).bold()
             } else {
                 Line::from(label).fg(Theme::TAB_INACTIVE)
@@ -59,7 +65,7 @@ fn render_tab_bar(frame: &mut Frame, area: Rect, active_tab: Tab) {
         .collect();
     let tabs = Tabs::new(tab_lines)
         .block(Block::default().borders(Borders::BOTTOM).border_style(Style::new().fg(Theme::BORDER)))
-        .select(match active_tab {
+        .select(match app.active_tab {
             Tab::Overview => 0,
             Tab::Processes => 1,
             Tab::About => 2,
@@ -69,14 +75,15 @@ fn render_tab_bar(frame: &mut Frame, area: Rect, active_tab: Tab) {
 }
 
 fn render_overview(frame: &mut Frame, area: Rect, app: &App) {
+    let locale = app.locale;
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Ratio(1, 3); 3])
         .split(area);
 
-    render_gauge_panel(frame, cols[0], "CPU", app.snapshot.cpu_usage_pct, &app.snapshot.cpu_history, Theme::gauge_color(app.snapshot.cpu_usage_pct));
-    render_gauge_panel(frame, cols[1], "Memory", app.snapshot.memory_usage_pct, &[], Theme::GAUGE_MEMORY);
-    render_gauge_panel(frame, cols[2], "Disk", app.snapshot.disk_usage_pct, &[], Theme::GAUGE_DISK);
+    render_gauge_panel(frame, cols[0], i18n::gauge_cpu(locale), app.snapshot.cpu_usage_pct, &app.snapshot.cpu_history, Theme::gauge_color(app.snapshot.cpu_usage_pct));
+    render_gauge_panel(frame, cols[1], i18n::gauge_memory(locale), app.snapshot.memory_usage_pct, &[], Theme::GAUGE_MEMORY);
+    render_gauge_panel(frame, cols[2], i18n::gauge_disk(locale), app.snapshot.disk_usage_pct, &[], Theme::GAUGE_DISK);
 }
 
 fn render_gauge_panel(
@@ -121,6 +128,7 @@ fn render_gauge_panel(
 }
 
 fn render_processes(frame: &mut Frame, area: Rect, app: &App) {
+    let locale = app.locale;
     let sort_indicator = match app.sort_column {
         crate::app::ProcessSortColumn::Cpu => "CPU ▼",
         crate::app::ProcessSortColumn::Memory => "Mem ▼",
@@ -129,12 +137,12 @@ fn render_processes(frame: &mut Frame, area: Rect, app: &App) {
     };
 
     let header = Row::new(vec![
-        format!("PID {sort_indicator}"),
-        "Name".into(),
-        "CPU%".into(),
-        "Mem%".into(),
-        "Mem MB".into(),
-        "Status".into(),
+        format!("{} {sort_indicator}", i18n::process_header_pid(locale)),
+        i18n::process_header_name(locale).to_string(),
+        i18n::process_header_cpu(locale).to_string(),
+        i18n::process_header_mem(locale).to_string(),
+        i18n::process_header_mem_mb(locale).to_string(),
+        i18n::process_header_status(locale).to_string(),
     ])
     .style(Style::new().fg(Theme::TABLE_HEADER).bold())
     .bottom_margin(1);
@@ -171,7 +179,7 @@ fn render_processes(frame: &mut Frame, area: Rect, app: &App) {
         .header(header)
         .block(
             Block::default()
-                .title(format!(" Processes ({}) ", app.snapshot.processes.len()))
+                .title(format!(" {} ({}) ", i18n::tab_processes(locale), app.snapshot.processes.len()))
                 .borders(Borders::ALL)
                 .border_style(Style::new().fg(Theme::BORDER)),
         )
@@ -181,29 +189,31 @@ fn render_processes(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_stateful_widget(table, area, &mut table_state);
 }
 
-fn render_about(frame: &mut Frame, area: Rect) {
+fn render_about(frame: &mut Frame, area: Rect, app: &App) {
+    let locale = app.locale;
     let text = vec![
         Line::from(""),
-        Line::from(Span::styled("  {{ project-name }}", Style::new().bold())),
-        Line::from("  A system monitoring TUI"),
+        Line::from(Span::styled(format!("  {{ project-name }}  [{}]", locale.label()), Style::new().bold())),
+        Line::from(format!("  {}", i18n::about_title(locale))),
         Line::from(""),
-        Line::from(Span::styled("  Keybindings", Style::new().bold().underlined())),
-        Line::from("  q / Esc       Quit"),
-        Line::from("  1 2 3         Switch to tab"),
-        Line::from("  h l / ← →     Previous / next tab"),
-        Line::from("  j k / ↑ ↓     Navigate / scroll"),
-        Line::from("  r             Manual refresh"),
-        Line::from("  f             Cycle refresh interval (1s → 2s → 5s)"),
-        Line::from("  s             Cycle process sort column"),
-        Line::from("  ?             Toggle help bar"),
+        Line::from(Span::styled(format!("  {}", i18n::about_section_keybindings(locale)), Style::new().bold().underlined())),
+        Line::from(format!("  {}", i18n::about_kb_quit(locale))),
+        Line::from(format!("  {}", i18n::about_kb_tab(locale))),
+        Line::from(format!("  {}", i18n::about_kb_switch(locale))),
+        Line::from(format!("  {}", i18n::about_kb_nav(locale))),
+        Line::from(format!("  {}", i18n::about_kb_refresh(locale))),
+        Line::from(format!("  {}", i18n::about_kb_interval(locale))),
+        Line::from(format!("  {}", i18n::about_kb_sort(locale))),
+        Line::from(format!("  {}", i18n::about_kb_lang(locale))),
+        Line::from(format!("  {}", i18n::about_kb_help(locale))),
         Line::from(""),
-        Line::from(Span::styled("  Mouse", Style::new().bold().underlined())),
-        Line::from("  Scroll wheel to browse the process list."),
+        Line::from(Span::styled(format!("  {}", i18n::about_section_mouse(locale)), Style::new().bold().underlined())),
+        Line::from(format!("  {}", i18n::about_mouse_desc(locale))),
     ];
     let paragraph = Paragraph::new(text)
         .block(
             Block::default()
-                .title(" About ")
+                .title(format!(" {} ", i18n::tab_about(locale)))
                 .borders(Borders::ALL)
                 .border_style(Style::new().fg(Theme::BORDER)),
         )
@@ -212,12 +222,13 @@ fn render_about(frame: &mut Frame, area: Rect) {
 }
 
 fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let locale = app.locale;
     let bg = Theme::status_bar_bg(app.is_refreshing);
     let status_icon = if app.is_refreshing { "⟳" } else { "●" };
     let status_text = if app.is_refreshing {
-        "Refreshing"
+        i18n::status_refreshing(locale)
     } else {
-        "Idle"
+        i18n::status_idle(locale)
     };
     let line = Line::from(vec![
         Span::raw(status_icon),
@@ -225,15 +236,19 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         Span::raw(status_text),
         Span::raw("  │  "),
         Span::raw(&app.snapshot.timestamp),
-        Span::raw("  │  Refresh: "),
+        Span::raw("  │  "),
+        Span::raw(i18n::status_refresh_label(locale)),
+        Span::raw(": "),
         Span::raw(app.refresh_interval.label()),
+        Span::raw("  │  "),
+        Span::raw(locale.label()),
     ]);
     let para = Paragraph::new(line).style(Style::new().bg(bg).fg(ratatui::style::Color::White));
     frame.render_widget(para, area);
 }
 
-fn render_help_bar(frame: &mut Frame, area: Rect, _tab: Tab) {
-    let text = " q:Quit  1-3:Tab  ←→/hl:Switch  ↑↓/jk:Nav  r:Refresh  f:Interval  s:Sort  ?:Help ";
+fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let text = i18n::help_bar_text(app.locale);
     let para = Paragraph::new(text).style(Style::new().fg(Theme::HELP_BAR_FG));
     frame.render_widget(para, area);
 }

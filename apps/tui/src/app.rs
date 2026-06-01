@@ -1,5 +1,6 @@
 //! Application state and event loop.
 
+use crate::i18n::Locale;
 use crate::monitor::SystemSnapshot;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
 use std::time::{Duration, Instant};
@@ -126,6 +127,8 @@ pub struct App {
     pub show_help_bar: bool,
     /// Whether to use simulated data.
     pub demo_mode: bool,
+    /// Current locale for i18n.
+    pub locale: Locale,
     /// Latest system data snapshot.
     pub snapshot: SystemSnapshot,
     /// Exit flag.
@@ -135,7 +138,7 @@ pub struct App {
 impl App {
     /// Creates a new app with default state.
     #[must_use]
-    pub fn new(demo_mode: bool) -> Self {
+    pub fn new(demo_mode: bool, locale: Locale) -> Self {
         let mut snapshot = SystemSnapshot::new();
         snapshot.refresh(demo_mode);
         Self {
@@ -148,6 +151,7 @@ impl App {
             is_refreshing: false,
             show_help_bar: true,
             demo_mode,
+            locale,
             snapshot,
             should_quit: false,
         }
@@ -183,6 +187,7 @@ fn handle_key(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
         }
         (KeyCode::Char('f'), _) => app.refresh_interval = app.refresh_interval.next(),
         (KeyCode::Char('s'), _) => app.sort_column = app.sort_column.next(),
+        (KeyCode::Char('L'), _) => app.locale = app.locale.next(),
         (KeyCode::Char('?'), _) => app.show_help_bar = !app.show_help_bar,
         _ => {}
     }

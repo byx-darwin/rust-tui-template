@@ -3,6 +3,7 @@
 //! Launch with `{{ project-name }}-tui`. Pass `--demo` for simulated data.
 
 mod app;
+mod i18n;
 mod monitor;
 mod theme;
 mod ui;
@@ -14,6 +15,9 @@ use std::process::ExitCode;
 fn run() -> anyhow::Result<()> {
     // Parse --demo flag (minimal, no clap dependency)
     let demo_mode = std::env::args().any(|a| a == "--demo");
+
+    // Detect locale from environment
+    let locale = i18n::Locale::from_env();
 
     // Initialize tracing to a file (never stdout during TUI mode)
     let state_dir = dirs::state_dir()
@@ -56,7 +60,7 @@ fn run() -> anyhow::Result<()> {
     let mut terminal = ratatui::Terminal::new(backend).context("failed to create terminal")?;
 
     // Run the app
-    let mut app = app::App::new(demo_mode);
+    let mut app = app::App::new(demo_mode, locale);
     let result = app::run_app(&mut app, &mut terminal);
 
     // Restore terminal
